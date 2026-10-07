@@ -1,0 +1,22 @@
+# Copy and adjust paths on a Linux server with Node.js 22+.
+# Keep telegram/.env outside version control and readable only by the service user.
+[Unit]
+Description=Focus Telegram authentication and reminders
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=focus
+WorkingDirectory=/srv/focus
+ExecStart=/usr/bin/node --env-file=/srv/focus/telegram/.env /srv/focus/telegram/service.mjs
+Restart=always
+RestartSec=15
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/focus/.telegram-state
+
+[Install]
+WantedBy=multi-user.target

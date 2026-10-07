@@ -1,0 +1,11 @@
+import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
+export const records = sqliteTable('records', {
+ id: text('id').primaryKey(), owner: text('owner').notNull(), kind: text('kind').notNull(), title: text('title').notNull(), topic: text('topic').notNull().default(''), blocks: text('blocks').notNull().default('[]'), status: text('status').notNull().default('todo'), priority: text('priority').notNull().default('normal'), dueAt: text('due_at'), reminderVersion: integer('reminder_version').notNull().default(0), createdAt: text('created_at').notNull(), updatedAt: text('updated_at').notNull()
+}, t => [index('records_owner_kind_index').on(t.owner, t.kind)]);
+export const preferences = sqliteTable('preferences', {
+ owner: text('owner').primaryKey(), timezone: text('timezone').notNull().default('Europe/Berlin'), morningTime: text('morning_time').notNull().default('08:00'), morningEnabled: integer('morning_enabled').notNull().default(1), deadlineEnabled: integer('deadline_enabled').notNull().default(1), telegramId: text('telegram_id').unique(), telegramName: text('telegram_name'), telegramRequired: integer('telegram_required').notNull().default(0)
+});
+export const authLinks = sqliteTable('auth_links', {hash: text('hash').primaryKey(), owner: text('owner').notNull(), browserHash: text('browser_hash').notNull(), expiresAt: integer('expires_at').notNull(), confirmed: integer('confirmed').notNull().default(0), used: integer('used').notNull().default(0)});
+export const sessions = sqliteTable('sessions', {hash:text('hash').primaryKey(), owner:text('owner').notNull(), expiresAt:integer('expires_at').notNull()});
+export const outbox = sqliteTable('outbox', {id:text('id').primaryKey(), owner:text('owner').notNull(), chatId:text('chat_id').notNull(), message:text('message').notNull(), status:text('status').notNull().default('pending'), createdAt:text('created_at').notNull(), updatedAt:text('updated_at').notNull(), error:text('error'), taskId:text('task_id'), deadline:text('deadline'), reminderVersion:integer('reminder_version')}, t => [index('outbox_status_index').on(t.status)]);
+export const serviceState = sqliteTable('service_state', {id:text('id').primaryKey(), username:text('username'), heartbeat:integer('heartbeat').notNull().default(0)});

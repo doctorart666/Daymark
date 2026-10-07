@@ -1,0 +1,44 @@
+import assert from 'node:assert/strict';
+const base='http://127.0.0.1:5173';
+let cookie='__sites_local_auth=1';
+const secret='local-test-secret';
+async function api(path,data,options={}){const r=await fetch(base+path,{method:data===undefined?'GET':options.method??'POST',headers:{...(options.anonymous?{}:{Cookie:cookie}),...(data===undefined?{}:{'Content-Type':'application/json',Origin:options.origin??base}),...options.headers},body:data===undefined?undefined:JSON.stringify(data),redirect:'manual'});const setCookies=r.headers.getSetCookie();for(const c of setCookies){const part=c.split(';')[0],name=part.split('=')[0];cookie=cookie.split('; ').filter(x=>!x.startsWith(name+'=')).concat(part).join('; ');}const raw=await r.text();let result;try{result=JSON.parse(raw);}catch{result={error:raw};}if(!options.expectedError)assert.ok(r.ok,JSON.stringify(result));return {r,result};}
+async function service(action,args={}){return (await api('/api/service',{action,...args},{headers:{Authorization:`Bearer ${secret}`}})).result;}
+assert.equal((await api('/api/workspace',undefined,{anonymous:true,expectedError:true})).r.status,401);
+assert.equal((await api('/api/workspace',undefined,{anonymous:true,expectedError:true,headers:{'oai-authenticated-user-id':'local_seedy','oai-authenticated-user-email':'spoof@example.com'}})).r.status,401);
+const original=(await api('/api/workspace')).result;
+const created=[];
+for(const kind of ['task','note','topic']){const {result}=await api('/api/entries',{kind,title:`Перевірка ${kind}`,topic:'QA',blocks:[{id:crypto.randomUUID(),type:'text',content:'Текст перевірки'},{id:crypto.randomUUID(),type:'code',content:'const test = true;',language:'typescript'}],status:'todo',priority:'high',dueAt:kind==='task'?new Date(Date.now()+15*60000).toISOString():null});created.push(result);}
+const loaded=(await api('/api/workspace')).result;
+for(const e of created)assert.ok(loaded.entries.some(x=>x.id===e.id&&x.blocks[1].content==='const test = true;'));
+let task=created[0];task=(await api('/api/entries',{...task,title:'Перевірка редагування'})).result;assert.equal(task.title,'Перевірка редагування');
+assert.equal((await api('/api/entries',{...task,title:''},{expectedError:true})).r.status,400);
+assert.equal((await api('/api/entries',task,{expectedError:true,origin:'https://evil.invalid'})).r.status,403);
+assert.equal((await api('/api/service',{action:'health'},{expectedError:true})).r.status,403);
+await service('heartbeat',{username:'focus_test_bot'});
+const {result:start}=await api('/api/telegram',{action:'start'});const code=new URL(start.url).searchParams.get('start');
+assert.equal((await api('/api/telegram',{action:'complete'})).result.confirmed,false);
+assert.equal((await service('confirm',{code:'f'.repeat(48),chatId:'1234567',name:'QA'})).ok,false);
+assert.equal((await service('confirm',{code,chatId:'1234567',name:'QA'})).ok,true);
+assert.equal((await api('/api/telegram',{action:'complete'})).result.confirmed,true);
+assert.equal((await api('/api/telegram',{action:'complete'})).result.confirmed,false);
+const prefs={...original.preferences,morningEnabled:false,deadlineEnabled:true,telegramRequired:true};
+await api('/api/preferences',prefs);
+let jobs=(await service('tick')).jobs;assert.equal(jobs.length,1);assert.equal(jobs[0].chat_id,'1234567');await service('ack',{id:jobs[0].id,status:'sent'});
+assert.equal((await service('tick')).jobs.length,0);
+task=(await api('/api/entries',{...task,dueAt:new Date(Date.now()+20*60000).toISOString()})).result;
+jobs=(await service('tick')).jobs;assert.equal(jobs.length,1);await service('ack',{id:jobs[0].id,status:'sent'});
+await api('/api/entries',{...task,status:'done'});assert.equal((await service('tick')).jobs.length,0);
+await api('/api/telegram',{action:'logout'});
+assert.equal((await api('/api/workspace')).result.telegram.gate,true);
+assert.equal((await api('/api/workspace')).result.entries.length,0);
+assert.equal((await api('/api/entries',task,{expectedError:true})).r.status,423);
+const {result:secondStart}=await api('/api/telegram',{action:'start'});
+const secondCode=new URL(secondStart.url).searchParams.get('start');
+assert.equal((await service('confirm',{code:secondCode,chatId:'7654321',name:'Wrong user'})).ok,false);
+assert.equal((await service('confirm',{code:secondCode,chatId:'1234567',name:'QA'})).ok,true);
+assert.equal((await api('/api/telegram',{action:'complete'})).result.confirmed,true);
+for(const e of created)await api('/api/entries',{id:e.id},{method:'DELETE'});
+const after=(await api('/api/workspace')).result;for(const e of created)assert.ok(!after.entries.some(x=>x.id===e.id));
+await api('/api/preferences',{...original.preferences,telegramRequired:false});
+console.log('API checks passed: persistent CRUD/code blocks, input validation, origin and identity protection, Telegram one-time challenge/session gate, deadline queue deduplication and rescheduling. Local test records removed.');
