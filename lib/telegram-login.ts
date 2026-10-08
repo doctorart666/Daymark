@@ -1,7 +1,7 @@
 import { db, hash } from './server';
 import {languageValue,translate} from './i18n';
 
-async function telegramOwner(chatId: string) {
+export async function telegramOwner(chatId: string) {
   const existing = await db().prepare('SELECT owner FROM preferences WHERE telegram_id = ?')
     .bind(chatId).first<{ owner: string }>();
   if (!existing) return `telegram:${chatId}`;

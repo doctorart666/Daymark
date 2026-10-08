@@ -1,6 +1,6 @@
 # Daymark — tasks, notes and learning
 
-A personal workspace for tasks, notes, and learning topics, with German, English, and Ukrainian interfaces. Every entry supports text, headings, and code blocks with language selection, reordering, and copying. Data is stored in D1 and isolated by authenticated user. Tasks have a status, priority, and optional deadline.
+A personal workspace for tasks, notes, and learning topics, with German, English, and Ukrainian interfaces. Every entry supports text, headings, and code blocks with language selection, reordering, and copying. Data is stored in D1. Personal entries are isolated by authenticated user; shared entries are restricted to the workspace owner and invited members. Tasks have a status, priority, and optional deadline.
 
 ## Development
 
@@ -20,7 +20,7 @@ The `drizzle/0002_complex_betty_ross.sql` migration adds schedule fields. It has
 
 ## Telegram: setup and startup
 
-The local site requires sign-in through a Telegram bot: a one-time `/start` link, confirmation in a private chat, a Telegram ID association, and a 30-day HttpOnly session. Pages and API endpoints validate this session. Test cookies and third-party authentication headers do not grant access. Signing out revokes the session on the server. Entries are isolated by Telegram account.
+The local site requires sign-in through a Telegram bot: a one-time `/start` link, confirmation in a private chat, a Telegram ID association, and a 30-day HttpOnly session. Pages and API endpoints validate this session. Test cookies and third-party authentication headers do not grant access. Signing out revokes the session on the server. Personal entries are isolated by Telegram account. Shared entries require current workspace membership.
 
 The sign-in page also completes confirmation after a reload or a return from Telegram. If an earlier version stored a confirmed account under a temporary `pending:` owner, it is restored under its Telegram owner only when the matching private cookie and a valid confirmation are present. A temporary owner cannot grant access to entries.
 
@@ -71,3 +71,19 @@ The bot sends one separate overdue notification in addition to the reminder 30 m
 For recurring tasks, overdue status applies to an individual date; the next scheduled date starts active. Moving the deadline into the future or removing it clears overdue status. Editing text or reopening a task does not repeat the notification for the same deadline. The “Deadline reminder” setting controls messages before and after the deadline. Automatic status changes work independently of this setting.
 
 Checks: `node scripts/check-domain.mjs` and `node scripts/check-overdue.mjs`. The latter runs the production status and notification queue code against a separate in-memory SQLite database. `scripts/check-overdue-api.mjs` is intended only for an isolated local server with a test database.
+
+## Shared workspaces
+
+Use the workspace selector in the sidebar to switch between your personal workspace and shared workspaces. Click **Shared workspaces**, enter a name, and select **Create**. A shared workspace starts empty and keeps its tasks, notes, and learning topics separate from personal entries. Its timezone is copied from the creator's settings when it is created, so recurring schedules and deadlines are consistent for all members.
+
+The owner can select **Create invitation** and copy the generated Telegram link. Each link can be accepted once and expires after 7 days; create a separate invitation for each person. The recipient opens the link in a private chat with the bot and presses **Start**. For people on other computers, the website must be reachable at an external URL; a loopback address such as `localhost` only works on the computer running the site. The bot uses its configured `SITE_URL` for the **Open workspace** link. The combined `npm run dev` command uses the local server address, so external access also requires a hosting or network setup. The bot grants membership and offers **Open workspace**. Browser sign-in still uses the existing browser-bound Telegram confirmation; an invitation alone never creates a browser session. The workspace query parameter is preserved through sign-in.
+
+Members can view, create, edit and complete tasks, notes and learning topics. Only the owner can delete entire shared entries, generate or revoke invitations, see the participant list, and remove members. Use **Remove access** beside a member to revoke their access. Existing sessions remain usable for personal data, but all shared read/write requests validate current membership. The open interface refreshes on focus and every 20 seconds. Used invitations cannot restore revoked membership; the owner must generate a new one. Records authored by a removed member remain in the workspace.
+
+Invitations are stored as hashes, and the full link is shown only when it is created. Unused invitations can be revoked separately. “Shared” means access by invitation, not anonymous access or indexing by a public directory.
+
+Each member receives shared-task deadline and overdue reminders using their own language and reminder preferences. The morning message combines personal and accessible shared tasks in one daily summary. Shared titles include the workspace name. Removing a member also cancels their queued messages containing that workspace's tasks. Membership is checked again immediately before sending claimed messages; messages already being sent or delivered cannot be recalled. The site and bot still run only when started manually.
+
+The schema additions are in `drizzle/0004_silky_terror.sql` and `drizzle/0005_careful_dakota_north.sql`. Both have been applied to this local database after creating a private backup in `.wrangler/backups/`. For a fresh database, apply all migrations in numerical order. The new migrations add workspaces, members, hashed invitations, and notification access metadata without moving personal records.
+
+Run `node scripts/check-workspaces.mjs` for isolated in-memory integration checks of production APIs, Telegram acceptance, ownership and member permissions, data isolation, single-use/expired/revoked invitations, concurrent revocation, removal and re-invitation, shared scheduling, per-recipient reminders, and a single combined morning summary. No real Telegram requests or changes to local user data are made by this check.

@@ -1,0 +1,1 @@
+ALTER TABLE `outbox` ADD `workspace_ids` text DEFAULT '[]' NOT NULL;

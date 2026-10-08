@@ -1,4 +1,3 @@
-import {requireUser} from '@/lib/server';
-import Workspace from '../workspace';
+import WorkspacePage, { type WorkspacePageProps } from '../workspace-page';
 export const dynamic='force-dynamic';
-export default async function Page(){await requireUser('/notes');return <Workspace section="note"/>;}
+export default function Page({searchParams}:WorkspacePageProps){return <WorkspacePage searchParams={searchParams} path="/notes" section="note"/>;}

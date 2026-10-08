@@ -6,7 +6,7 @@ for(const [key,values] of Object.entries(messages))for(const language of ['en','
   assert.ok(values[language],`${language}: ${key}`);
   assert.deepEqual([...values[language].matchAll(/\{(\w+)\}/g)].map(m=>m[1]).sort(),[...key.matchAll(/\{(\w+)\}/g)].map(m=>m[1]).sort());
 }
-for(const file of ['app/workspace.tsx','app/login/login.tsx','app/language-provider.tsx','app/telegram-setup/instructions.tsx']){
+for(const file of ['app/workspace.tsx','app/workspace-access.tsx','app/login/login.tsx','app/language-provider.tsx','app/telegram-setup/instructions.tsx']){
   const source=ts.createSourceFile(file,readFileSync(file,'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
   function visit(node){if(ts.isCallExpression(node)&&ts.isIdentifier(node.expression)&&node.expression.text==='t'&&ts.isStringLiteral(node.arguments[0]))assert.ok(messages[node.arguments[0].text],`${file}: missing ${node.arguments[0].text}`);ts.forEachChild(node,visit);}visit(source);
 }

@@ -3,7 +3,8 @@ export type Block = { id: string; type: 'text'|'heading'|'code'; content: string
 export type Repeat = { days:number[]; time:string|null };
 export type Entry = { id:string; kind:'task'|'note'|'topic'; title:string; topic:string; blocks:Block[]; status:'todo'|'progress'|'done'|'overdue'; priority:'normal'|'high'|'low'; dueAt:string|null; repeat:Repeat|null; statusDate:string|null; occurrenceDate:string|null; createdAt:string; updatedAt:string };
 export type Preferences = { language:Language; timezone:string; morningTime:string; morningEnabled:boolean; deadlineEnabled:boolean; telegramId:string|null; telegramName:string|null; telegramRequired:boolean };
-export type WorkspaceData = { entries:Entry[]; preferences:Preferences; telegram:{configured:boolean; username:string|null; online:boolean; lastSeen:number; gate:boolean}; displayName:string };
+export type SharedWorkspace = { id:string; name:string; timezone:string; role:'owner'|'editor' };
+export type WorkspaceData = { workspaces:SharedWorkspace[]; activeWorkspace:{id:string|null; name:string; timezone:string; role:'personal'|'owner'|'editor'}; entries:Entry[]; preferences:Preferences; telegram:{configured:boolean; username:string|null; online:boolean; lastSeen:number; gate:boolean}; displayName:string };
 export const kinds = { task:'Завдання', note:'Нотатки', topic:'Навчання' };
 export const statusLabels = { todo:'До виконання', progress:'У роботі', done:'Виконано', overdue:'Прострочено' };
 export function dayKey(date:Date, timezone:string) { return new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(date); }

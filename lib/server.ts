@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import type { Entry, Preferences, WorkspaceData } from './models';
+import type { Entry, Preferences, WorkspaceData, SharedWorkspace } from './models';
 import { projectEntry } from './recurrence';
 import { overdueOccurrences } from './reminders';
 import { languageValue,translate } from './i18n';
@@ -111,12 +111,42 @@ export async function syncTaskStatuses(id:string,timezone:string,now=new Date())
   }
   if(updates.length)await db().batch(updates);
 }
-export async function workspace(): Promise<WorkspaceData> {
+// The records.owner namespace keeps personal records untouched; shared records
+// live under workspace:<uuid>. The acting user's identity is always separate.
+export async function sharedWorkspaces(userId:string):Promise<SharedWorkspace[]> {
+  const rows = (await db().prepare(`SELECT w.id,w.name,w.timezone,
+    CASE WHEN w.owner = ? THEN 'owner' ELSE 'editor' END AS role FROM workspaces w
+    WHERE w.owner = ? OR EXISTS (SELECT 1 FROM workspace_members m WHERE m.workspace_id = w.id AND m.user_id = ?)
+    ORDER BY w.created_at,w.id`).bind(userId,userId,userId).all<SharedWorkspace>()).results;
+  return rows;
+}
+export function scopeGuard(userId:string,workspaceId:string|null,ownerOnly=false) {
+  if (!workspaceId) return { sql:'1 = 1', args:[] as string[] };
+  return { sql:`EXISTS (SELECT 1 FROM workspaces w WHERE w.id = ? AND
+    (w.owner = ? ${ownerOnly ? '' : 'OR EXISTS (SELECT 1 FROM workspace_members m WHERE m.workspace_id = w.id AND m.user_id = ?)'}))`,
+    args:ownerOnly ? [workspaceId,userId] : [workspaceId,userId,userId] };
+}
+export async function recordScope(userId:string,workspaceId:string|null) {
+  if (!workspaceId) return { id:userId,workspace:null,timezone:(await preferences(userId)).timezone };
+  if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(workspaceId)) throw new Error('FORBIDDEN');
+  const guard=scopeGuard(userId,workspaceId);
+  const shared=await db().prepare(`SELECT id,name,timezone,CASE WHEN owner = ? THEN 'owner' ELSE 'editor' END AS role
+    FROM workspaces WHERE id = ? AND ${guard.sql}`).bind(userId,workspaceId,...guard.args).first<SharedWorkspace>();
+  if (!shared) throw new Error('FORBIDDEN');
+  return { id:'workspace:'+shared.id,workspace:shared,timezone:shared.timezone };
+}
+export async function workspace(workspaceId:string|null=null): Promise<WorkspaceData> {
   const user = await owner();
   const settings = await preferences(user.userId);
-  await syncTaskStatuses(user.userId,settings.timezone);
-  const rows = await db().prepare('SELECT * FROM records WHERE owner = ? ORDER BY updated_at DESC')
-    .bind(user.userId).all<Record<string, unknown>>();
-  return { entries: rows.results.map(row => toEntry(row, settings.timezone)), preferences: settings,
+  const scope = await recordScope(user.userId,workspaceId);
+  await syncTaskStatuses(scope.id,scope.timezone);
+  const guard=scopeGuard(user.userId,workspaceId);
+  const rows = await db().prepare(`SELECT * FROM records WHERE owner = ? AND ${guard.sql} ORDER BY updated_at DESC`)
+    .bind(scope.id,...guard.args).all<Record<string, unknown>>();
+  // Recheck after the read so a concurrent removal cannot return a stale snapshot.
+  if (workspaceId) await recordScope(user.userId,workspaceId);
+  return { entries: rows.results.map(row => toEntry(row,scope.timezone)), preferences: settings,
+    workspaces:await sharedWorkspaces(user.userId),
+    activeWorkspace:scope.workspace ?? {id:null,name:translate(user.language,'Мій простір'),role:'personal',timezone:settings.timezone},
     telegram: await telegramStatus(), displayName: user.fullName ?? translate(user.language,'Мій простір') };
 }
