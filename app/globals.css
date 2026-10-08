@@ -66,3 +66,5 @@
 .pending-invites-heading{font-size:1rem;font-weight:600;margin-top:1.25rem}
 .access-loading{display:flex;align-items:center;gap:.5rem;padding:1rem 0;font-size:.875rem;color:var(--muted-foreground)}
 @media(max-width:480px){.workspace-access-dialog{padding:1.2rem;top:1rem;translate:-50% 0;max-height:calc(100dvh - 2rem)}.workspace-create>div,.invite-result>div{flex-wrap:wrap}.workspace-create .form-input,.invite-result .form-input{flex-basis:100%}.workspace-member-list li,.workspace-invite-list li{flex-wrap:wrap}}
+
+.content-grid.content-grid-full{grid-template-columns:minmax(0,1fr)}
