@@ -1,74 +1,73 @@
 # Daymark — tasks, notes and learning
 
-Особистий сайт із німецьким, англійським та українським інтерфейсом із завданнями, нотатками й навчальними темами. Кожен запис підтримує текст, заголовки та блоки коду з вибором мови, зміною порядку й копіюванням. Дані зберігаються в D1, окремо для кожного автентифікованого користувача. Завдання мають статус, пріоритет і необов'язковий дедлайн.
+A personal workspace for tasks, notes, and learning topics, with German, English, and Ukrainian interfaces. Every entry supports text, headings, and code blocks with language selection, reordering, and copying. Data is stored in D1 and isolated by authenticated user. Tasks have a status, priority, and optional deadline.
 
-## Розробка
+## Development
 
-Потрібен Node.js 22.13+. Після `npm ci` запускайте сайт і Telegram разом однією командою: `npm run dev`. Адреса: `http://localhost:5173`. Зупинка обох процесів — `Ctrl+C` у цьому ж терміналі. Автозапуск не встановлюється. Для перевірки лише сайту доступна команда `npm run dev:web`. Для цього проєкту використовується Sites; конфігурація зберігання й ідентифікатор сайту — `.openai/hosting.json`. Продакшн-схема змінюється міграціями Drizzle (`npm run db:generate`), а не під час HTTP-запитів. Для локальної бази застосуйте SQL із `drizzle/` у порядку номерів за інструкцією starter: `wrangler d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file <migration.sql>`.
+Requires Node.js 22.13 or later. After running `npm ci`, start the site and Telegram bot together with `npm run dev`. Local address: `http://localhost:5173`. Press `Ctrl+C` in the same terminal to stop both processes. No automatic startup is installed. Use `npm run dev:web` to run only the site. This project uses Sites; storage configuration and the site identifier are in `.openai/hosting.json`. Production schema changes use Drizzle migrations (`npm run db:generate`), rather than running during HTTP requests. For the local database, apply the SQL files in `drizzle/` in numerical order using the starter command: `wrangler d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file <migration.sql>`.
 
-Кеш Vite зберігається окремо в `.sites-runtime/node_modules/.vite` кожної копії проєкту. Розташування кешу також входить у ключ версії модулів, щоб браузер не поєднував старий ReactDOM із новим React. Тестові копії можуть використовувати спільні залежності, але не перезаписують модулі запущеного сайту. Після зміни конфігурації кешу перезапустіть `npm run dev` і примусово оновіть сторінку (`Cmd+Shift+R` на macOS).
+Each project copy has its own Vite cache in `.sites-runtime/node_modules/.vite`. The cache location is also included in the module version key to prevent the browser from mixing an older ReactDOM with a newer React. Test copies can share dependencies without overwriting modules used by the running site. After changing the cache configuration, restart `npm run dev` and perform a hard refresh (`Cmd+Shift+R` on macOS).
 
-## Постійні завдання
+## Recurring tasks
 
-У редакторі завдання увімкніть «Постійне завдання» та виберіть «Щодня» або окремі дні тижня. Час виконання необов’язковий. Вкладка «Постійні» показує всі такі завдання, а «Сьогодні» — заплановані на поточний день.
+Enable “Recurring task” in the task editor and select “Every day” or individual weekdays. The time is optional. The “Recurring” tab shows all recurring tasks, while “Today” shows tasks scheduled for the current day.
 
-Виконання стосується конкретної дати у вашому часовому поясі; у наступний вибраний день завдання знову активне. Завдання залишається одним записом із тим самим описом і блоками коду. Видалення прибирає запис і його розклад.
+Completion applies to a specific date in your time zone. The task becomes active again on the next selected day. It remains a single entry with the same description and code blocks. Deleting it removes both the entry and its schedule.
 
-Постійні завдання на сьогодні входять у ранковий список, навіть без часу. Якщо час указано, бот нагадує за 30 хвилин, включно з переходом через північ. Кожна дата має власний ключ нагадування. Час, пропущений через перехід на літній час, переноситься на першу доступну локальну хвилину.
+Recurring tasks scheduled for today appear in the morning summary, even without a time. If a time is set, the bot sends a reminder 30 minutes beforehand, including across midnight. Each date has its own reminder key. A time skipped by daylight saving time is moved to the first available local minute.
 
-Міграція `drizzle/0002_complex_betty_ross.sql` додає поля розкладу; її вже застосовано до локальної бази зі збереженням попередніх записів. Перед зміною локальної схеми створено резервну копію у `.wrangler/backups/`.
+The `drizzle/0002_complex_betty_ross.sql` migration adds schedule fields. It has already been applied to the local database while preserving existing entries. A backup was created in `.wrangler/backups/` before changing the local schema.
 
-## Telegram: стан і запуск
+## Telegram: setup and startup
 
-Локальний сайт використовує обов'язковий вхід через Telegram-бота: одноразове посилання `/start`, підтвердження в приватному чаті, прив'язка до Telegram ID і 30-денна HttpOnly-сесія. Сторінки та API перевіряють цю сесію; тестова cookie та заголовки сторонньої авторизації не надають доступу. Після натискання «Вийти» сесія відкликається на сервері. Записи ізольовані за акаунтом Telegram.
+The local site requires sign-in through a Telegram bot: a one-time `/start` link, confirmation in a private chat, a Telegram ID association, and a 30-day HttpOnly session. Pages and API endpoints validate this session. Test cookies and third-party authentication headers do not grant access. Signing out revokes the session on the server. Entries are isolated by Telegram account.
 
-Сторінка входу завершує підтвердження також після оновлення сторінки чи повернення з Telegram. Якщо попередня версія зберегла підтверджений акаунт під тимчасовим власником `pending:`, він відновлюється під власником Telegram лише за наявності відповідної приватної cookie та чинного підтвердження. Тимчасовий власник не може надавати доступ до записів.
+The sign-in page also completes confirmation after a reload or a return from Telegram. If an earlier version stored a confirmed account under a temporary `pending:` owner, it is restored under its Telegram owner only when the matching private cookie and a valid confirmation are present. A temporary owner cannot grant access to entries.
 
-Локальна імітація входу вимкнена. Старий запис, створений під тестовою локальною особою, переноситься після підтвердження Telegram в тому самому браузері зі старою cookie; сама стара cookie не авторизує користувача.
+Local sign-in simulation is disabled. An older entry created under the local test identity is transferred after Telegram confirmation in the same browser with the old cookie. The old cookie alone does not authenticate the user.
 
-Ранковий список надсилається о 08:00 Europe/Berlin, а нагадування про дедлайн — за 30 хвилин.
+The morning summary is sent at 08:00 Europe/Berlin, and deadline reminders are sent 30 minutes before the deadline.
 
-Telegram-бот і нагадування **запускаються вручну, лише за потреби**. `telegram/service.mjs` — готовий сервіс Node.js без додаткових залежностей. Поки процес запущений, він опитує бот через getUpdates та перевіряє нагадування кожні 15 секунд. Для запуску потрібен чинний токен бота. Зупинка комп'ютера чи сервісу зупиняє нагадування.
+The Telegram bot and reminders **start manually, only when needed**. `telegram/service.mjs` is a Node.js service with no additional dependencies. While running, it polls the bot through getUpdates and checks reminders every 15 seconds. A valid bot token is required. Shutting down the computer or stopping the service stops reminders.
 
-1. У приватному `telegram/.env` додайте `TELEGRAM_BOT_TOKEN` від BotFather. Файл ігнорується Git. Поля `SITE_URL`, `SITES_ACCESS_TOKEN` і `TELEGRAM_SERVICE_SECRET` для цього екземпляра вже підготовлені локально.
-2. Секрет `TELEGRAM_SERVICE_SECRET` також має бути у секретних змінних Sites. Зміна змінних застосовується повторною публікацією. Приватний платформний ключ доступу читається власником через Sites; він не є Telegram-токеном.
-3. Коли потрібно, запустіть у корені проєкту: `npm run dev`. Сайт і бот працюють разом у відкритому терміналі. Бот чекає готовності локального сервера та підключається до нього; значення `SITE_URL` у приватному файлі при цьому не змінюється. Для зупинки обох натисніть `Ctrl+C`. Якщо один процес завершується, другий теж зупиняється.
-4. На сторінці входу натисніть «Увійти через Telegram», відкрийте посилання на бота й натисніть Start. Сайт відкриється після підтвердження.
-5. Для виходу натисніть кнопку біля імені в бічній панелі. Щоб знову увійти, повторіть підтвердження через бота.
+1. Add your BotFather `TELEGRAM_BOT_TOKEN` to the private `telegram/.env` file. Git ignores this file. The `SITE_URL`, `SITES_ACCESS_TOKEN`, and `TELEGRAM_SERVICE_SECRET` fields have already been configured locally for this instance.
+2. Set the same `TELEGRAM_SERVICE_SECRET` in the Sites secret variables. Redeploy to apply variable changes. The owner retrieves the private platform access token through Sites; it is separate from the Telegram bot token.
+3. When needed, run `npm run dev` from the project root. The site and bot run together in the open terminal. The bot waits for the local server to become ready and connects to it without changing `SITE_URL` in the private file. Press `Ctrl+C` to stop both. If either process exits, the other stops too.
+4. On the sign-in page, click “Sign in with Telegram”, open the bot link, and press Start. The site opens after confirmation.
+5. To sign out, click the button next to your name in the sidebar. Repeat bot confirmation to sign in again.
 
-Локальний спільний запуск використовує секрет `TELEGRAM_SERVICE_SECRET` із `.dev.vars`; він має бути налаштований у цьому файлі. Приватний токен хостингу не надсилається локальному серверу.
+The combined local startup uses `TELEGRAM_SERVICE_SECRET` from `.dev.vars`; it must be configured in that file. The private hosting token is not sent to the local server.
 
-`.telegram-state/local/offset.json` містить позицію getUpdates локального спільного запуску; окремий запуск сервісу використовує `.telegram-state/offset.json`; збережіть цю папку між перезапусками. Наявний webhook бота не видаляється: сервіс зупиниться і повідомить про конфлікт. Не запускайте декілька getUpdates-процесів для одного бота.
+`.telegram-state/local/offset.json` stores the getUpdates offset for the combined local startup. Running the service separately uses `.telegram-state/offset.json`. Keep this directory between restarts. An existing bot webhook is not removed: the service stops and reports the conflict. Do not run multiple getUpdates processes for the same bot.
 
-## Поведінка нагадувань
+## Reminder behavior
 
-Ранковий список містить усі невиконані звичайні завдання з дедлайнами, включно з простроченими та майбутніми, та постійні завдання, заплановані на сьогодні. Він створюється один раз на календарний день за часовим поясом користувача у годинному вікні після вибраного часу. При відсутності таких завдань повідомлення не надсилається. Вимкнені нагадування не створюються.
+The morning summary includes all incomplete regular tasks with deadlines, including overdue and future tasks, plus recurring tasks scheduled for today. It is created once per calendar day in the user's time zone, within a one-hour window after the selected time. No message is sent if there are no matching tasks. Disabled reminders are not created.
 
-Дедлайн зберігається в UTC, а редагується та відображається у вибраному часовому поясі. Перехід літнього часу враховується; неіснуючий локальний час відхиляється. Нагадування створюється за 30 хвилин (точність до інтервалу 15 секунд); нове завдання з ближчим дедлайном отримує нагадування на наступній перевірці. Виконані й видалені завдання не створюють нагадувань. Зміна дедлайну створює нову версію нагадування, а старе невідправлене скасовується.
+Deadlines are stored in UTC and edited and displayed in the selected time zone. Daylight saving time is accounted for; nonexistent local times are rejected. A reminder is created 30 minutes before the deadline, within the 15-second polling interval. A newly created task with a closer deadline receives a reminder on the next check. Completed and deleted tasks do not create reminders. Changing a deadline creates a new reminder version and cancels the previous unsent reminder.
 
-Унікальні ключі D1 захищають від повторного створення ранкових і дедлайн-повідомлень. Черга відправлень захоплюється атомарно. Якщо сервіс падає під час запиту Telegram і неможливо визначити, чи повідомлення вже доставлено, такий запит позначається `unknown` і автоматично не повторюється. Telegram sendMessage не має ключа ідемпотентності, тому абсолютну гарантію доставки рівно один раз за мережевих збоїв забезпечити неможливо. Явні відмови Telegram позначаються `failed`; токен і вміст HTTP-запитів не виводяться в логи.
+Unique D1 keys prevent duplicate morning and deadline messages from being created. The delivery queue is claimed atomically. If the service fails during a Telegram request and delivery cannot be confirmed, the request is marked `unknown` and is not retried automatically. Telegram sendMessage has no idempotency key, so exactly-once delivery cannot be guaranteed during network failures. Explicit Telegram rejections are marked `failed`. Tokens and HTTP request contents are not written to logs.
 
-## Перевірки
+## Checks
 
-`npm exec tsc -- --noEmit`, `npm run lint`, `node scripts/check-domain.mjs`, збірка, а також `scripts/check-api.mjs` в ізольованій копії проєкту з окремою базою й портом через `FOCUS_TEST_BASE_URL` та `FOCUS_TEST_SERVICE_SECRET`. HTTP-перевірки охоплюють обов’язковий вхід, відхилення старих cookie та підроблених заголовків, одноразовий код, ізоляцію акаунтів, вихід, перенесення старого запису, CRUD, щоденні й тижневі розклади, виконання за датою та чергу нагадувань. Скрипт відмовляється працювати на звичайному порту 5173.
+Run `npm exec tsc -- --noEmit`, `npm run lint`, `node scripts/check-domain.mjs`, and the build. Run `scripts/check-api.mjs` in an isolated project copy with a separate database and port, using `FOCUS_TEST_BASE_URL` and `FOCUS_TEST_SERVICE_SECRET`. HTTP checks cover mandatory sign-in, rejection of old cookies and spoofed headers, one-time codes, account isolation, sign-out, transfer of an older entry, CRUD, daily and weekly schedules, date-specific completion, and the reminder queue. The script refuses to run on the normal port, 5173.
 
-WebMCP на підтримуваних браузерах надає `list_entries` і `start_entry_creation`; перевірка в реальному WebMCP-браузері потребує доступного браузерного контексту. Операції використовують ті самі API й авторизацію, що й інтерфейс.
+In supported browsers, WebMCP exposes `list_entries` and `start_entry_creation`. Testing in an actual WebMCP browser requires an available browser context. These operations use the same APIs and authentication as the interface.
 
+Automatic startup is not used. Start the site and bot together manually with `npm run dev`; pressing `Ctrl+C` stops both processes.
 
-Автозапуск не використовується. Сайт і бот запускаються вручну разом через `npm run dev`; після `Ctrl+C` обидва процеси завершуються.
+## Interface language
 
-## Мова інтерфейсу
+German, English, and Ukrainian are available on the sign-in page, in the top bar, and in settings. The selection is saved automatically: in the browser before sign-in, and also in the Telegram account after sign-in. Dates, the editor, and new reminders use the selected language. Your entry text and code are not translated.
 
-Deutsch, English та Українська доступні на сторінці входу, у верхній панелі та в налаштуваннях. Вибір зберігається автоматично: до входу — у браузері, після входу — також в акаунті Telegram. Дати, редактор і нові нагадування використовують вибрану мову. Тексти ваших записів і код не перекладаються.
+The `drizzle/0003_skinny_nova.sql` migration has already been applied to the local database. It adds the language for accounts and sign-in links. Existing entries were preserved, and the backup is in `.wrangler/backups/`.
 
-Міграцію `drizzle/0003_skinny_nova.sql` вже застосовано до локальної бази: вона додає мову акаунта та посилання для входу. Існуючі записи збережено, резервна копія — у `.wrangler/backups/`.
+## Overdue tasks
 
-## Прострочення завдань
+After the deadline, an incomplete task automatically receives the “Overdue” status. The status is also calculated in the open list without a reload and is saved when the workspace is read or the bot checks tasks. Completed tasks and tasks without a deadline or scheduled time do not become overdue.
 
-Після дедлайну невиконане завдання автоматично отримує статус «Прострочено». Статус обчислюється також у відкритому списку без перезавантаження та зберігається під час читання простору або перевірки бота. Виконані завдання й завдання без часу не прострочуються.
+The bot sends one separate overdue notification in addition to the reminder 30 minutes before the deadline. Checks run every 15 seconds while the site and bot are running manually. After a manual restart, missed deadlines are checked. For recurring tasks, this covers the latest overdue date whose state is still stored. The message uses the selected interface language.
 
-Бот надсилає одне окреме повідомлення про прострочення, додатково до нагадування за 30 хвилин. Перевірка відбувається кожні 15 секунд, поки сайт і бот запущені вручну. Після ручного перезапуску перевіряється пропущений дедлайн; для постійних завдань — остання прострочена дата, стан якої ще збережено. Повідомлення використовує вибрану мову інтерфейсу.
+For recurring tasks, overdue status applies to an individual date; the next scheduled date starts active. Moving the deadline into the future or removing it clears overdue status. Editing text or reopening a task does not repeat the notification for the same deadline. The “Deadline reminder” setting controls messages before and after the deadline. Automatic status changes work independently of this setting.
 
-Для постійного завдання прострочення належить окремій даті, а наступна дата починається активною. Перенесення дедлайну в майбутнє або його видалення знімає прострочення. Редагування тексту чи повторне відкриття завдання не повторює повідомлення про той самий дедлайн. Налаштування «Нагадування про дедлайн» керує повідомленнями до та після дедлайну; автоматична зміна статусу працює незалежно від нього.
-
-Перевірки: `node scripts/check-domain.mjs` та `node scripts/check-overdue.mjs`. Остання виконує робочий код статусів і черги сповіщень на окремій базі SQLite в пам’яті. `scripts/check-overdue-api.mjs` призначений лише для ізольованого локального сервера з тестовою базою.
+Checks: `node scripts/check-domain.mjs` and `node scripts/check-overdue.mjs`. The latter runs the production status and notification queue code against a separate in-memory SQLite database. `scripts/check-overdue-api.mjs` is intended only for an isolated local server with a test database.
