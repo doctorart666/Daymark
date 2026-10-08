@@ -13,6 +13,7 @@ const { d1, r2 } = hostingConfig;
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 const managedLinux = readExecutionProfile() === "managed-linux";
+const viteCacheDir = ".sites-runtime/node_modules/.vite";
 
 const localBindingConfig = {
   main: "./build/sites-worker.ts",
@@ -52,7 +53,11 @@ export default defineConfig(async ({ command }) => {
   const { cloudflare } = await import("@cloudflare/vite-plugin");
 
   return {
+    // Isolated checkouts can share node_modules, but never optimizer output.
+    // Otherwise another dev server replaces chunks still used by this browser.
+    cacheDir: viteCacheDir,
     server: {
+      strictPort: true,
       ...(managedLinux
         ? { host: "0.0.0.0", allowedHosts: ["terminal.local"] }
         : {}),
@@ -61,8 +66,11 @@ export default defineConfig(async ({ command }) => {
         : {}),
     },
     plugins: [
+      // Vite hashes plugin names, but omits cacheDir from its dependency hash.
+      // Include the layout so cached runtime imports cannot keep the old URLs.
+      { name: `focus-cache-layout:${viteCacheDir}` },
       vinext(),
-      sites({ mockAuth: !managedLinux }),
+      sites({ mockAuth: false }),
       connectorPreview(),
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },

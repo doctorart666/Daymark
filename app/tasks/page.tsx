@@ -1,4 +1,4 @@
-import {requireChatGPTUser} from '../chatgpt-auth';
+import {requireUser} from '@/lib/server';
 import Workspace from '../workspace';
 export const dynamic='force-dynamic';
-export default async function Page(){await requireChatGPTUser('/tasks');return <Workspace section="task"/>;}
+export default async function Page(){await requireUser('/tasks');return <Workspace section="task"/>;}

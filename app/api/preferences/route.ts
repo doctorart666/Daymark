@@ -1,4 +1,17 @@
-import {authorized,checkOrigin,db,failure} from '@/lib/server';
-import {z} from 'zod';
-const schema=z.object({timezone:z.string().max(100),morningTime:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),morningEnabled:z.boolean(),deadlineEnabled:z.boolean(),telegramRequired:z.boolean()});
-export async function POST(req:Request){try{checkOrigin(req);const u=await authorized();const parsed=schema.safeParse(await req.json());if(!parsed.success)throw new Error('VALIDATION:Перевірте налаштування.');const p=parsed.data;try{new Intl.DateTimeFormat('en',{timeZone:p.timezone});}catch{throw new Error('VALIDATION:Некоректний часовий пояс.');}const linked=await db().prepare('SELECT telegram_id FROM preferences WHERE owner=?').bind(u.userId).first();if(p.telegramRequired&&!linked?.telegram_id)throw new Error('VALIDATION:Спочатку підключіть Telegram.');await db().prepare('INSERT INTO preferences (owner,timezone,morning_time,morning_enabled,deadline_enabled,telegram_required) VALUES (?,?,?,?,?,?) ON CONFLICT(owner) DO UPDATE SET timezone=excluded.timezone,morning_time=excluded.morning_time,morning_enabled=excluded.morning_enabled,deadline_enabled=excluded.deadline_enabled,telegram_required=excluded.telegram_required').bind(u.userId,p.timezone,p.morningTime,Number(p.morningEnabled),Number(p.deadlineEnabled),Number(p.telegramRequired)).run();return Response.json({ok:true});}catch(e){return failure(e);}}
+import { authorized, checkOrigin, db, failure } from '@/lib/server';
+import { z } from 'zod';
+const schema = z.object({ timezone: z.string().max(100), morningTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), morningEnabled: z.boolean(), deadlineEnabled: z.boolean() });
+export async function POST(req: Request) {
+  try {
+    checkOrigin(req);
+    const user = await authorized();
+    const parsed = schema.safeParse(await req.json());
+    if (!parsed.success) throw new Error('VALIDATION:Перевірте налаштування.');
+    const p = parsed.data;
+    try { new Intl.DateTimeFormat('en', { timeZone: p.timezone }); }
+    catch { throw new Error('VALIDATION:Некоректний часовий пояс.'); }
+    await db().prepare(`UPDATE preferences SET timezone = ?, morning_time = ?, morning_enabled = ?, deadline_enabled = ?, telegram_required = 1 WHERE owner = ?`)
+      .bind(p.timezone, p.morningTime, Number(p.morningEnabled), Number(p.deadlineEnabled), user.userId).run();
+    return Response.json({ ok: true });
+  } catch (e) { return failure(e); }
+}
